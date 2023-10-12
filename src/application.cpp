@@ -5,82 +5,82 @@
 #include <string>
 #include <fstream>
 
-static void GLClearError()
-{
-    while (glGetError() != GL_NO_ERROR);
+#define ASSERT(x) \
+    if (!(x)) __debugbreak();
+#define GLCall(x)                                 \
+    do {                                          \
+        x;                                        \
+        ASSERT(GLLogCall(#x, __FILE__, __LINE__)) \
+    } while (0)
+
+static void GLClearError() {
+    while (glGetError() != GL_NO_ERROR)
+        ;
 }
 
-static void GLCheckError()
-{
-    while (GLenum error = glGetError())
-    {
-        std::cout << "[OpenGL Error] (" << error << ")" << std::endl;
+static bool GLLogCall(const char *function, const char *file, int line) {
+    while (GLenum error = glGetError()) {
+        std::cout << "[OpenGL Error] (" << error << "):" << function << " " << file << ":" << line << std::endl;
+        return false;
     }
+    return true;
 }
 
 class ShaderConfStr {
 public:
-    ShaderConfStr(std::string& shaderName, std::string& confStr)
-    {
+    ShaderConfStr(std::string &shaderName, std::string &confStr) {
         _shaderName = shaderName;
         _confStr = confStr;
     }
 
-    const void printInfo() const
-    {
-        std::cout << _shaderName << " shader: \n" << _confStr << std::endl;
+    const void printInfo() const {
+        std::cout << _shaderName << " shader: \n"
+                  << _confStr << std::endl;
     }
     std::string _shaderName;
     std::string _confStr;
 };
 
-static std::vector<ShaderConfStr> ParseShaderConf(const std::string& confPath) {
+static std::vector<ShaderConfStr> ParseShaderConf(const std::string &confPath) {
     std::ifstream stream(confPath);
     std::string line;
     std::string shaderName;
     std::string confStr;
     std::vector<ShaderConfStr> shaderConfs;
     static const std::string begineStr = "#Shader";
-    while (getline(stream, line))
-    {
+    while (getline(stream, line)) {
         size_t pos;
         pos = line.find(begineStr);
-        if (pos != std::string::npos)
-        {
-            if (!shaderName.empty())
-            {
+        if (pos != std::string::npos) {
+            if (!shaderName.empty()) {
                 shaderConfs.push_back(ShaderConfStr(shaderName, confStr));
             }
             confStr = "";
             shaderName = line.substr(pos + begineStr.length() + 1, line.length() - 1);
-        }
-        else
-        {
+        } else {
             confStr += line + "\n";
         }
     }
-    if (!shaderName.empty())
-    {
+    if (!shaderName.empty()) {
         shaderConfs.push_back(ShaderConfStr(shaderName, confStr));
     }
     return shaderConfs;
 }
 
-static unsigned int CompileShader(const std::string& source, unsigned int type) {
+static unsigned int CompileShader(const std::string &source, unsigned int type) {
     unsigned int id = glCreateShader(type);
-    const char* src = source.c_str();
+    const char *src = source.c_str();
     glShaderSource(id, 1, &src, nullptr);
     glCompileShader(id);
 
     int res;
     glGetShaderiv(id, GL_COMPILE_STATUS, &res);
-    if (res == GL_FALSE)
-    {
+    if (res == GL_FALSE) {
         int length;
         glGetShaderiv(id, GL_INFO_LOG_LENGTH, &length);
-        char* message = (char*)alloca(length * sizeof(char));
+        char *message = (char *)alloca(length * sizeof(char));
         glGetShaderInfoLog(id, length, &length, message);
-        std::cout << "compile shader " << (type == GL_VERTEX_SHADER ? "vertex" : "fragment") << "failed" <<std::endl;
+        std::cout << "compile shader " << (type == GL_VERTEX_SHADER ? "vertex" : "fragment") << "failed" << std::endl;
         std::cout << message << std::endl;
         glDeleteShader(id);
         return 0;
@@ -88,7 +88,7 @@ static unsigned int CompileShader(const std::string& source, unsigned int type) 
     return id;
 }
 
-static unsigned int CreateShader(const std::string& vertexShader, const std::string& fragmentShader) {
+static unsigned int CreateShader(const std::string &vertexShader, const std::string &fragmentShader) {
     unsigned int program = glCreateProgram();
     unsigned int vs = CompileShader(vertexShader, GL_VERTEX_SHADER);
     unsigned int fs = CompileShader(fragmentShader, GL_FRAGMENT_SHADER);
@@ -104,9 +104,8 @@ static unsigned int CreateShader(const std::string& vertexShader, const std::str
     return program;
 }
 
-int main(void)
-{
-    GLFWwindow* window;
+int main(void) {
+    GLFWwindow *window;
 
     /* Initialize the library */
     if (!glfwInit())
@@ -114,12 +113,10 @@ int main(void)
 
     /* Create a windowed mode window and its OpenGL context */
     window = glfwCreateWindow(640, 480, "Hello World", NULL, NULL);
-    if (!window)
-    {
+    if (!window) {
         glfwTerminate();
         return -1;
     }
-
 
     /* Make the window's context current */
     glfwMakeContextCurrent(window);
@@ -135,8 +132,7 @@ int main(void)
         -1.0f, -0.5f,
         0.5f, 0.0f,
         1.0f, 1.0f,
-        -0.5f, 0.0f
-    };
+        -0.5f, 0.0f};
     glGenBuffers(1, &buffer);
     glBindBuffer(GL_ARRAY_BUFFER, buffer);
     glBufferData(GL_ARRAY_BUFFER, 6 * 2 * sizeof(float), points, GL_STATIC_DRAW);
@@ -145,8 +141,7 @@ int main(void)
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, 0);
 
     unsigned int indices[] = {
-        0, 1, 2, 0, 2, 3
-    };
+        0, 1, 2, 0, 2, 3};
     unsigned int ebo;
     glGenBuffers(1, &ebo);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
@@ -156,15 +151,11 @@ int main(void)
     std::vector<ShaderConfStr> shaderConfStrs = ParseShaderConf(confPath);
     std::string vertexShader;
     std::string fragmentShader;
-    for (const auto shaderConfStr : shaderConfStrs)
-    {
+    for (const auto shaderConfStr : shaderConfStrs) {
         shaderConfStr.printInfo();
-        if (shaderConfStr._shaderName == "vertex")
-        {
+        if (shaderConfStr._shaderName == "vertex") {
             vertexShader = shaderConfStr._confStr;
-        }
-        else if (shaderConfStr._shaderName == "fragment")
-        {
+        } else if (shaderConfStr._shaderName == "fragment") {
             fragmentShader = shaderConfStr._confStr;
         }
     }
@@ -173,14 +164,11 @@ int main(void)
     glUseProgram(shader);
 
     /* Loop until the user closes the window */
-    while (!glfwWindowShouldClose(window))
-    {
+    while (!glfwWindowShouldClose(window)) {
         /* Render here */
         glClear(GL_COLOR_BUFFER_BIT);
 
-        GLClearError();
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
-        GLCheckError();
+        GLCall(glDrawElements(GL_TRIANGLES, 6, GL_INT, nullptr));
 
         /* Swap front and back buffers */
         glfwSwapBuffers(window);
