@@ -5,6 +5,19 @@
 #include <string>
 #include <fstream>
 
+static void GLClearError()
+{
+    while (glGetError() != GL_NO_ERROR);
+}
+
+static void GLCheckError()
+{
+    while (GLenum error = glGetError())
+    {
+        std::cout << "[OpenGL Error] (" << error << ")" << std::endl;
+    }
+}
+
 class ShaderConfStr {
 public:
     ShaderConfStr(std::string& shaderName, std::string& confStr)
@@ -118,17 +131,26 @@ int main(void)
     std::cout << glGetString(GL_VERSION) << std::endl;
 
     unsigned int buffer;
-    float points[6] = {
-        -1.0f, -1.9f,
-        2.0f, 1.9f,
-        1.0f, 3.0f,
+    float points[] = {
+        -1.0f, -0.5f,
+        0.5f, 0.0f,
+        1.0f, 1.0f,
+        -0.5f, 0.0f
     };
     glGenBuffers(1, &buffer);
     glBindBuffer(GL_ARRAY_BUFFER, buffer);
-    glBufferData(GL_ARRAY_BUFFER, 6 * sizeof(float), points, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, 6 * 2 * sizeof(float), points, GL_STATIC_DRAW);
 
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, 0);
+
+    unsigned int indices[] = {
+        0, 1, 2, 0, 2, 3
+    };
+    unsigned int ebo;
+    glGenBuffers(1, &ebo);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * sizeof(unsigned int), indices, GL_STATIC_DRAW);
 
     const std::string confPath = "res/shader.conf";
     std::vector<ShaderConfStr> shaderConfStrs = ParseShaderConf(confPath);
@@ -156,7 +178,9 @@ int main(void)
         /* Render here */
         glClear(GL_COLOR_BUFFER_BIT);
 
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+        GLClearError();
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
+        GLCheckError();
 
         /* Swap front and back buffers */
         glfwSwapBuffers(window);
